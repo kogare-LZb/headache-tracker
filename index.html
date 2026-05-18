@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="頭痛薬記録">
+<title>頭痛薬記録</title>
+<link rel="manifest" href='data:application/manifest+json,{"name":"頭痛薬記録","short_name":"頭痛薬","start_url":".","display":"standalone","background_color":"%23ffffff","theme_color":"%232563eb","icons":[{"src":"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 192 192%22%3E%3Crect width=%22192%22 height=%22192%22 rx=%2232%22 fill=%22%232563eb%22/%3E%3Ctext x=%2296%22 y=%22125%22 font-size=%22110%22 text-anchor=%22middle%22 fill=%22white%22 font-family=%22sans-serif%22%3E薬%3C/text%3E%3C/svg%3E","sizes":"192x192","type":"image/svg+xml"}]}'>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body {
+  font-family: -apple-system, "Hiragino Sans", "Yu Gothic", sans-serif;
+  background: #f4f6fb;
+  color: #1f2937;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 16px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+header { text-align: center; padding: 8px 0 16px; }
+header h1 { font-size: 18px; color: #4b5563; font-weight: 600; }
+
+.status-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  margin-bottom: 20px;
+}
+.status-card.warn { background: #fee2e2; }
+.status-label { font-size: 13px; color: #6b7280; margin-bottom: 4px; }
+.status-card.warn .status-label { color: #991b1b; }
+.status-count {
+  font-size: 56px;
+  font-weight: 700;
+  color: #2563eb;
+  line-height: 1.1;
+}
+.status-card.warn .status-count { color: #dc2626; }
+.status-unit { font-size: 18px; color: #6b7280; margin-left: 4px; }
+.status-card.warn .status-unit { color: #991b1b; }
+.warn-msg {
+  margin-top: 12px;
+  font-size: 14px;
+  color: #991b1b;
+  font-weight: 600;
+  display: none;
+}
+.status-card.warn .warn-msg { display: block; }
+
+.record-btn {
+  width: 100%;
+  padding: 32px;
+  font-size: 24px;
+  font-weight: 700;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+  transition: transform 0.1s, background 0.2s;
+  margin-bottom: 24px;
+}
+.record-btn:active { transform: scale(0.97); background: #1d4ed8; }
+.record-btn.recorded { background: #10b981; }
+
+.history-section {
+  background: white;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  margin-bottom: 16px;
+  flex: 1;
+}
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 4px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 8px;
+}
+.history-title { font-size: 14px; font-weight: 600; color: #4b5563; }
+.history-count { font-size: 12px; color: #9ca3af; }
+.history-list { max-height: 280px; overflow-y: auto; }
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 4px;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 14px;
+}
+.history-item:last-child { border-bottom: none; }
+.history-date { color: #1f2937; }
+.history-time { color: #6b7280; font-size: 12px; margin-left: 8px; }
+.delete-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 18px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.empty { text-align: center; padding: 24px; color: #9ca3af; font-size: 14px; }
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+.action-btn {
+  flex: 1;
+  padding: 12px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+}
+.action-btn:active { background: #f3f4f6; }
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: #1f2937;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 24px;
+  font-size: 14px;
+  opacity: 0;
+  transition: all 0.3s;
+  pointer-events: none;
+  z-index: 100;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<header><h1>頭痛薬の記録</h1></header>
+
+<div id="statusCard" class="status-card">
+  <div class="status-label">過去30日の服用日数</div>
+  <div>
+    <span class="status-count" id="dayCount">0</span><span class="status-unit">日 / 30日</span>
+  </div>
+  <div class="warn-msg">⚠️ 服用日数が多めです。医師に相談を検討してください</div>
+</div>
+
+<button class="record-btn" id="recordBtn">今 飲んだ</button>
+
+<div class="history-section">
+  <div class="history-header">
+    <span class="history-title">履歴</span>
+    <span class="history-count" id="historyCount">0件</span>
+  </div>
+  <div class="history-list" id="historyList"></div>
+</div>
+
+<div class="actions">
+  <button class="action-btn" id="exportBtn">CSVエクスポート</button>
+  <button class="action-btn" id="clearBtn">全削除</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'headache_med_records_v1';
+const WARN_THRESHOLD = 10;
+
+const $ = id => document.getElementById(id);
+const loadRecords = () => {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+  catch { return []; }
+};
+const saveRecords = recs => localStorage.setItem(STORAGE_KEY, JSON.stringify(recs));
+
+const showToast = msg => {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+};
+
+const fmtDate = ts => {
+  const d = new Date(ts);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const w = ['日','月','火','水','木','金','土'][d.getDay()];
+  return `${y}/${m}/${day}(${w})`;
+};
+const fmtTime = ts => {
+  const d = new Date(ts);
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+};
+const dayKey = ts => {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+};
+
+const countDaysIn30 = recs => {
+  const now = Date.now();
+  const cutoff = now - 30 * 24 * 60 * 60 * 1000;
+  const days = new Set();
+  for (const r of recs) {
+    if (r.ts >= cutoff && r.ts <= now) days.add(dayKey(r.ts));
+  }
+  return days.size;
+};
+
+const render = () => {
+  const recs = loadRecords().sort((a,b) => b.ts - a.ts);
+  const count = countDaysIn30(recs);
+
+  $('dayCount').textContent = count;
+  $('statusCard').classList.toggle('warn', count >= WARN_THRESHOLD);
+
+  $('historyCount').textContent = `${recs.length}件`;
+  const list = $('historyList');
+  if (recs.length === 0) {
+    list.innerHTML = '<div class="empty">記録はまだありません</div>';
+    return;
+  }
+  list.innerHTML = recs.map(r => `
+    <div class="history-item">
+      <div>
+        <span class="history-date">${fmtDate(r.ts)}</span>
+        <span class="history-time">${fmtTime(r.ts)}</span>
+      </div>
+      <button class="delete-btn" data-id="${r.id}" aria-label="削除">×</button>
+    </div>
+  `).join('');
+  list.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteRecord(btn.dataset.id));
+  });
+};
+
+const addRecord = () => {
+  const recs = loadRecords();
+  const rec = { id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), ts: Date.now() };
+  recs.push(rec);
+  saveRecords(recs);
+  render();
+  const btn = $('recordBtn');
+  btn.textContent = '✓ 記録しました';
+  btn.classList.add('recorded');
+  setTimeout(() => {
+    btn.textContent = '今 飲んだ';
+    btn.classList.remove('recorded');
+  }, 1500);
+  showToast(`${fmtDate(rec.ts)} ${fmtTime(rec.ts)} 記録`);
+};
+
+const deleteRecord = id => {
+  if (!confirm('この記録を削除しますか？')) return;
+  saveRecords(loadRecords().filter(r => r.id !== id));
+  render();
+  showToast('削除しました');
+};
+
+const exportCSV = () => {
+  const recs = loadRecords().sort((a,b) => a.ts - b.ts);
+  if (recs.length === 0) { showToast('記録がありません'); return; }
+  let csv = '日付,時刻,タイムスタンプ\n';
+  for (const r of recs) {
+    csv += `${fmtDate(r.ts)},${fmtTime(r.ts)},${new Date(r.ts).toISOString()}\n`;
+  }
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const today = new Date();
+  a.href = url;
+  a.download = `headache_med_${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('CSVを保存しました');
+};
+
+const clearAll = () => {
+  if (!confirm('すべての記録を削除しますか？\nこの操作は取り消せません。')) return;
+  if (!confirm('本当によろしいですか？')) return;
+  saveRecords([]);
+  render();
+  showToast('全件削除しました');
+};
+
+$('recordBtn').addEventListener('click', addRecord);
+$('exportBtn').addEventListener('click', exportCSV);
+$('clearBtn').addEventListener('click', clearAll);
+
+render();
+</script>
+</body>
+</html>

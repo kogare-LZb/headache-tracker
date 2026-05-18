@@ -35,8 +35,10 @@ header h1 { font-size: 18px; color: #4b5563; font-weight: 600; }
   margin-bottom: 20px;
 }
 .status-card.warn { background: #fee2e2; }
+.status-card.good { background: #d1fae5; }
 .status-label { font-size: 13px; color: #6b7280; margin-bottom: 4px; }
 .status-card.warn .status-label { color: #991b1b; }
+.status-card.good .status-label { color: #047857; }
 .status-count {
   font-size: 56px;
   font-weight: 700;
@@ -44,8 +46,11 @@ header h1 { font-size: 18px; color: #4b5563; font-weight: 600; }
   line-height: 1.1;
 }
 .status-card.warn .status-count { color: #dc2626; }
+.status-card.good .status-count { color: #059669; }
 .status-unit { font-size: 18px; color: #6b7280; margin-left: 4px; }
 .status-card.warn .status-unit { color: #991b1b; }
+.status-card.good .status-unit { color: #047857; }
+.elapsed-count { font-size: 40px; }
 .warn-msg {
   margin-top: 12px;
   font-size: 14px;
@@ -149,10 +154,17 @@ header h1 { font-size: 18px; color: #4b5563; font-weight: 600; }
 <body>
 <header><h1>頭痛薬の記録</h1></header>
 
+<div id="elapsedCard" class="status-card">
+  <div class="status-label">前回の服用から</div>
+  <div>
+    <span class="status-count elapsed-count" id="elapsedMain">-</span><span class="status-unit" id="elapsedUnit"></span>
+  </div>
+</div>
+
 <div id="statusCard" class="status-card">
   <div class="status-label">過去30日の服用日数</div>
   <div>
-    <span class="status-count" id="dayCount">0</span><span class="status-unit">日 / 30日</span>
+    <span class="status-count" id="dayCount">0</span><span class="status-unit">日 / 10日</span>
   </div>
   <div class="warn-msg">⚠️ 服用日数が多めです。医師に相談を検討してください</div>
 </div>
@@ -177,6 +189,7 @@ header h1 { font-size: 18px; color: #4b5563; font-weight: 600; }
 <script>
 const STORAGE_KEY = 'headache_med_records_v1';
 const WARN_THRESHOLD = 10;
+const SAFE_HOURS = 6;
 
 const $ = id => document.getElementById(id);
 const loadRecords = () => {
@@ -219,10 +232,40 @@ const countDaysIn30 = recs => {
   return days.size;
 };
 
+const formatElapsed = ms => {
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const pad = n => String(n).padStart(2, '0');
+  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+};
+
+const updateElapsed = () => {
+  const recs = loadRecords();
+  const card = $('elapsedCard');
+  const main = $('elapsedMain');
+  const unit = $('elapsedUnit');
+  if (recs.length === 0) {
+    main.textContent = '-';
+    unit.textContent = '';
+    card.classList.remove('good');
+    return;
+  }
+  const latest = Math.max(...recs.map(r => r.ts));
+  const safeMs = SAFE_HOURS * 3600000;
+  const rawElapsed = Math.max(0, Date.now() - latest);
+  const displayMs = Math.min(rawElapsed, safeMs);
+  main.textContent = formatElapsed(displayMs);
+  unit.textContent = ' / 6時間';
+  card.classList.toggle('good', rawElapsed >= safeMs);
+};
+
 const render = () => {
   const recs = loadRecords().sort((a,b) => b.ts - a.ts);
   const count = countDaysIn30(recs);
 
+  updateElapsed();
   $('dayCount').textContent = count;
   $('statusCard').classList.toggle('warn', count >= WARN_THRESHOLD);
 
@@ -300,6 +343,11 @@ const clearAll = () => {
 $('recordBtn').addEventListener('click', addRecord);
 $('exportBtn').addEventListener('click', exportCSV);
 $('clearBtn').addEventListener('click', clearAll);
+
+setInterval(updateElapsed, 1000);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) updateElapsed();
+});
 
 render();
 </script>
